@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup
 # ==========================================
 # CONFIGURACIÓN DE LA INTERFAZ WEB Y ESTILOS NEÓN
 # ==========================================
-st.set_page_config(page_title="CORE-NEURAL // Fosa de Atacama", layout="wide")
+st.set_page_config(page_title="PROTECTO CERO  made in chile ", layout="wide")
 
 st.html(
     """
