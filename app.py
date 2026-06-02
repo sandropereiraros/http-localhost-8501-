@@ -3,7 +3,7 @@ import pandas as pd
 import requests
 import folium
 from streamlit_folium import st_folium
-from streamlit_geolocation import streamlit_geolocation  # Módulo para leer el GPS
+from streamlit_geolocation import streamlit_geolocation
 from datetime import datetime, timedelta
 import time
 
@@ -38,7 +38,6 @@ st.html(
     """
 )
 
-# Base de datos histórica y de calibración por zonas (Compartida para ambos análisis)
 ZONAS_CONFIG = {
     "Arica/Iquique (Ref: 2014)": {"lat": -20.0, "base_cond": 4.5, "sig_cond": 0.1, "base_pres": 1015.0},
     "Antofagasta/Atacama": {"lat": -25.0, "base_cond": 3.8, "sig_cond": 0.2, "base_pres": 1011.5},
@@ -71,7 +70,6 @@ def obtener_sismos_chile():
     except:
         return pd.DataFrame(columns=["Magnitud", "Lugar", "Latitud", "Longitud", "Fecha"])
 
-# Simuladores de telemetría ambiental (Filtros base)
 nivel_insar_global = 45.0  
 anomalia_termica = 1.2
 anomalia_shoa = 2.6
@@ -79,13 +77,12 @@ conductividad_global = 4.2
 presion_global = 1012.0
 
 # ==========================================
-# MOTOR LOGÍSTICO BLINDADO (ANTI FALSOS POSITIVOS)
+# MOTOR LOGÍSTICO BLINDADO
 # ==========================================
 
 def calcular_riesgo_multivariable_por_zona(df_sismos, insar, termico, shoa, cond, pres):
     data_comparativa = []
     for nombre, config in ZONAS_CONFIG.items():
-        # 1. Filtro de Sismos (Solo magnitudes >= 3.0 para quitar ruido de microsismos)
         sismos_cerca = 0
         if not df_sismos.empty:
             sismos_cerca = len(df_sismos[
@@ -94,14 +91,11 @@ def calcular_riesgo_multivariable_por_zona(df_sismos, insar, termico, shoa, cond
                 (df_sismos['Magnitud'] >= 3.0)
             ])
             
-        # 2. COMPUERTA LOGÍSTICA (KILL-SWITCH)
         compuerta_abierta = (insar >= 55.0) or (sismos_cerca >= 4)
         
-        # 3. FILTRO Z-SCORE DE CONDUCTIVIDAD
         z_score_cond = (cond - config["base_cond"]) / config["sig_cond"]
         cond_valida = cond if z_score_cond > 2.5 else config["base_cond"]
         
-        # 4. SISTEMA DE PESOS (Correlación Histórica 2010/2014)
         peso_insar = insar * 0.35
         peso_sismos = min(sismos_cerca * 5.0, 15.0)
         
@@ -119,19 +113,17 @@ def calcular_riesgo_multivariable_por_zona(df_sismos, insar, termico, shoa, cond
         
     return pd.DataFrame(data_comparativa)
 
-# --- EJECUCIÓN PRINCIPAL DE CÓMPUTO ---
 df_sismos = obtener_sismos_chile()
 df_comparativo = calcular_riesgo_multivariable_por_zona(df_sismos, nivel_insar_global, anomalia_termica, anomalia_shoa, conductividad_global, presion_global)
 max_riesgo = df_comparativo["Nivel de Riesgo %"].max()
 
 # ==========================================
-# INTERFAZ DE USUARIO Y ALARMAS DE EMERGENCIA
+# INTERFAZ DE USUARIO Y ALARMAS
 # ==========================================
 
 st.html('<h1 style="color:#58a6ff; text-align:center;">⚡ GEO-NEURAL V4: ENTORNO CONTROLADO INTEGRADO</h1>')
 st.info("🛡️ FILTRO ANTI-FALSOS POSITIVOS ACTIVO: El sistema bloquea ruido ambiental si no existe correlación con deformación cortical (InSAR) o enjambres sísmicos verificados.")
 
-# Alerta Crítica del Sistema (Si el cómputo global cruza el 90%, se activa arriba para todo el entorno)
 if max_riesgo >= 90:
     st.html(f"""
         <div style="background: linear-gradient(45deg, #7a0e1d, #ff003c); padding:20px; border-radius:15px; border:4px dashed #fff; text-align:center; box-shadow: 0 0 50px rgba(255,0,60,0.8);">
@@ -141,10 +133,8 @@ if max_riesgo >= 90:
         <audio autoplay loop><source src="https://actions.google.com/sounds/v1/science_fiction/pulsating_space_beacon.ogg" type="audio/ogg"></audio>
     """)
 
-# --- ESTRUCTURACIÓN POR PESTAÑAS (TABS) ---
 tab1, tab2 = st.tabs(["🌐 MONITOREO GENERAL NACIONAL", "📍 RADAR GPS OPERADOR"])
 
-# PESTAÑA 1: Tu código V3 completo intacto
 with tab1:
     st.markdown("### 🗺️ ANÁLISIS SENSORIAL POR REGIONES")
     cols_zonas = st.columns(5)
@@ -195,21 +185,19 @@ with tab1:
         else:
             st.write("Corteza estable. Sin eventos sobre magnitud 3.0 recientes.")
 
-# PESTAÑA 2: Módulo nuevo de análisis GPS sin interferir con el resto
 with tab2:
     st.markdown("### 📡 ANÁLISIS DE COBERTURA EN TU POSICIÓN ACTUAL")
     col_btn, col_card = st.columns([1, 2.5])
     
     with col_btn:
-        st.write("Haz clic para sincronizar las coordenadas del dispositivo con la base de datos cortical:")
-        location = streamlit_geolocation()  # Renderiza el botón nativo de captura GPS
+        st.write("Haz clic para sincronizar las coordenadas:")
+        location = streamlit_geolocation()
         
     with col_card:
         if location and location.get("latitude"):
             user_lat = location["latitude"]
             user_lon = location["longitude"]
             
-            # Algoritmo de proximidad por latitud
             zona_cercana = None
             min_dist = float("inf")
             for nombre, config in ZONAS_CONFIG.items():
@@ -218,10 +206,21 @@ with tab2:
                     min_dist = dist
                     zona_cercana = nombre
                     
-            # Extraer el riesgo multivariable exacto calculado para esa zona
             riesgo_local = df_comparativo[df_comparativo["Zona"] == zona_cercana]["Nivel de Riesgo %"].values[0]
             color_user = "#2ec4b6" if riesgo_local < 40 else "#ff9f1c" if riesgo_local < 75 else "#ff003c"
             
             st.html(f"""
                 <div class="gps-card">
-                    <span style="color:#58a6ff; font-weight:bold; font-size:11px;">📍 ESC
+                    <span style="color:#58a6ff; font-weight:bold; font-size:11px;">📍 ESCANEO LOCAL DE ESTRÉS ACTIVO</span>
+                    <p style="margin:6px 0; font-size:15px;">Cuadrante Evaluado: <b>{zona_cercana}</b></p>
+                    <p style="margin:2px 0; font-size:11px; color:#8b949e;">Lat {user_lat:.4f} | Lon {user_lon:.4f}</p>
+                    <h2 style="color:{color_user}; margin:12px 0; font-size:22px;">Riesgo Local (M ≥ 7.5): {riesgo_local:.1f}%</h2>
+                </div>
+            """)
+        else:
+            st.warning("Ubicación en espera. Haz clic en 'Get Location' en el panel izquierdo.")
+
+st.sidebar.title("🎛️ CORE-CONTROL")
+frecuencia = st.sidebar.slider("Frecuencia de refresco (seg)", 5, 60, 10)
+time.sleep(frecuencia)
+st.rerun()
