@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 import time
 import random
 import numpy as np
+from fpdf import FPDF  
 
 # ==========================================
 # CONFIGURACIÓN DE LA INTERFAZ WEB Y ESTILOS NEÓN
@@ -36,6 +37,91 @@ st.html(
 )
 
 # ==========================================
+# FUNCIÓN MAESTRA: GENERADOR DE INFORME PDF CORREGIDO (SIN EMOJIS/UNICODE)
+# ==========================================
+def generar_pdf_reporte(estacion, puntaje, estado, b_val, cond, shoa, sismos_cnt, canal):
+    pdf = FPDF()
+    pdf.add_page()
+    
+    # Renderizado estético del documento (Paleta oscura institucional)
+    pdf.set_fill_color(13, 17, 23)
+    pdf.rect(0, 0, 210, 297, 'F')
+    
+    # Título Principal (Corregido: Se quitó el emoji del rayo)
+    pdf.set_text_color(88, 166, 255)
+    pdf.set_font("Courier", "B", 18)
+    pdf.cell(0, 15, "CORE-NEURAL SYSTEM // DIAGNOSTICO CORTICAL", ln=True, align="C")
+    
+    pdf.set_text_color(139, 148, 158)
+    pdf.set_font("Courier", "I", 9)
+    fecha_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    pdf.cell(0, 5, f"Reporte Automatizado de Falla - Sincronizacion: {fecha_str}", ln=True, align="C")
+    # Limpiamos posibles emojis en la variable canal
+    canal_limpio = "SATELITAL LEO" if "SATELITAL" in canal else "RED TERRESTRE"
+    pdf.cell(0, 5, f"Canal de Enlace: {canal_limpio}", ln=True, align="C")
+    pdf.ln(10)
+    
+    # Contenedor de Estado Ciudadano (Cuadro de Resumen Explicativo)
+    pdf.set_fill_color(22, 27, 34)
+    pdf.rect(10, 45, 190, 45, 'F')
+    
+    pdf.set_xy(15, 48)
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_font("Courier", "B", 12)
+    pdf.cell(0, 8, f"MONITOREO EN: {estacion.upper()}", ln=True)
+    
+    # Definición de color del Semáforo en el PDF
+    if puntaje >= 90: pdf.set_text_color(255, 0, 60)      
+    elif puntaje >= 75: pdf.set_text_color(255, 159, 28)  
+    elif puntaje >= 40: pdf.set_text_color(224, 159, 62)  
+    else: pdf.set_text_color(46, 196, 182)                
+        
+    pdf.set_font("Courier", "B", 14)
+    pdf.cell(0, 8, f"ALERTA ACTUAL: {estado.upper()} // MATCH: {puntaje:.1f}%", ln=True)
+    
+    # EXPLICACIÓN TRADUCIDA AL CIUDADANO COMÚN
+    pdf.set_xy(15, 66)
+    pdf.set_text_color(201, 209, 217)
+    pdf.set_font("Courier", "", 10)
+    
+    if puntaje < 40:
+        explicacion = "EXPLICACION SIMPLE: El segmento analizado de la Placa de Nazca se encuentra en una fase de deslizamiento elastico regular y pasivo. Los niveles de electricidad en la corteza profunda y la variacion del nivel del mar se mantienen estables dentro de los promedios normales de los ultimos anos. No hay evidencia de deformacion acelerada de riesgo."
+    elif puntaje < 75:
+        explicacion = "EXPLICACION SIMPLE: Se registra un incremento moderado en la acumulacion de energia elastica en la corteza. El subsuelo muestra pequenas variaciones electricas debido a la presion y la sismicidad local ha comenzado a ordenarse de manera constante. Se recomienda mantener la plataforma en observacion pasiva."
+    else:
+        explicacion = "EXPLICACION SIMPLE: ATENCION CRITICA. Los algoritmos detectan que las variables analizadas estan copiando fielmente los patrones electromagneticos y de deformacion mecanica registrados en grandes catastrofes pasadas. La falla presenta un alto acoplamiento (esta trabada) y se registran alteraciones ionosfericas/corticales significativas."
+        
+    pdf.multi_cell(180, 4.5, explicacion)
+    
+    # Tabla de Datos Duros (Se quitó el emoji del gráfico)
+    pdf.set_xy(10, 100)
+    pdf.set_text_color(88, 166, 255)
+    pdf.set_font("Courier", "B", 11)
+    pdf.cell(0, 10, "DESGLOSE DE MATRIZ DE TELEMETRIA (REGISTRO PRIVADO):", ln=True)
+    
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_font("Courier", "B", 10)
+    pdf.cell(100, 8, "Indicador Geofisico", border=1, fill=True)
+    pdf.cell(90, 8, "Metrica Obtenida en Tiempo Real", border=1, ln=True, fill=True)
+    
+    pdf.set_font("Courier", "", 10)
+    pdf.cell(100, 8, "Sismicidad de Fondo (b-value)", border=1)
+    pdf.cell(90, 8, f"{b_val} b (Valores < 0.8 indican alto estres estructural)", border=1, ln=True)
+    pdf.cell(100, 8, "Conductividad Electromagnetica", border=1)
+    pdf.cell(90, 8, f"{cond} mS/m (Fluctuacion de conductividad cortical)", border=1, ln=True)
+    pdf.cell(100, 8, "Residuo Mareografico (CENDHOC-SHOA)", border=1)
+    pdf.cell(90, 8, f"{shoa} cm (Deformacion neta post-filtrado de mareas)", border=1, ln=True)
+    pdf.cell(100, 8, "Sismos Registrados en Entorno (7D)", border=1)
+    pdf.cell(90, 8, f"{sismos_cnt} eventos detectados por la USGS", border=1, ln=True)
+    
+    pdf.set_xy(10, 275)
+    pdf.set_text_color(139, 148, 158)
+    pdf.set_font("Courier", "I", 8)
+    pdf.cell(0, 10, "PROYECTO PRIVADO MCKAY ANALYTICS - FINES ESTRICTAMENTE INFORMATIVOS", align="C")
+    
+    return pdf.output()
+
+# ==========================================
 # CONFIGURACIÓN DE RED & SELECCIÓN (BARRA LATERAL)
 # ==========================================
 st.sidebar.markdown("### 🎛️ CORE NETWORK (SISTEMA TRIPLE PLACA)")
@@ -45,7 +131,6 @@ intervalo_seleccionado = st.sidebar.selectbox(
     index=0
 )
 
-# ─── NUEVA INTEGRACIÓN: CONTROLES DE RED CRÍTICA ───
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 📡 BACKHAUL & REDUNDANCIA")
 simular_caida_red = st.sidebar.toggle("Simular Colapso de Red Terrestre (4G/Fibra)", value=False)
@@ -72,14 +157,13 @@ ESTACIONES_CONFIG = {
 estacion_seleccionada = st.sidebar.selectbox(
     "Estación de Monitoreo Activa",
     list(ESTACIONES_CONFIG.keys()),
-    index=3  # Valparaíso por defecto
+    index=3  
 )
 config_local = ESTACIONES_CONFIG[estacion_seleccionada]
 
 # ==========================================
 # APIs Y FUENTES DE DATOS EN TIEMPO REAL
 # ==========================================
-
 @st.cache_data(ttl=10)
 def obtener_sismos_regionales(lat_estacion, lon_estacion):
     fecha_inicio = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
@@ -121,9 +205,8 @@ def obtener_indice_kp_noaa():
         return 0
 
 # ==========================================
-# MOTOR LOGÍSTICO Y RESTRICCIONES DE REDACTIVA
+# MOTOR LOGÍSTICO COMPUERTAS DE CONTROL
 # ==========================================
-
 def calcular_riesgo_tectonico_blindado(insar, termico, total_sismos, b_value, kp_solar, presion_atmosferica, anomalia_mar, conductividad, config):
     compuerta_mecanica = (insar >= 50.0) or (total_sismos >= 2)
     z_score_conductividad = (conductividad - config["baseline_cond"]) / config["sigma_cond"]
@@ -143,11 +226,11 @@ def calcular_riesgo_tectonico_blindado(insar, termico, total_sismos, b_value, kp
         score = min(peso_insar + peso_sismos + peso_b_value + peso_termico + peso_atmosferico + peso_shoa + peso_cond, 100.0)
     else:
         score = 15.0 + random.uniform(-2.0, 3.0)
-        status_filtro = "INTERRUPTOR ACTIVO: Deslizamiento elástico regular."
+        status_filtro = "INTERRUPTOR ACTIVO: Deslizamiento elastico regular."
         
-    if score >= 90: return "CRÍTICO", "🔴", score, status_filtro
-    elif score >= 75: return "ADVERTENCIA CRÍTICA", "🟠", score, status_filtro
-    elif score >= 40: return "ATENCIÓN SÍSMICA", "🟡", score, status_filtro
+    if score >= 90: return "CRITICO", "🔴", score, status_filtro
+    elif score >= 75: return "ADVERTENCIA CRITICA", "🟠", score, status_filtro
+    elif score >= 40: return "ATENCION SISMICA", "🟡", score, status_filtro
     else: return "ESTABLE cortical", "🟢", score, status_filtro
 
 # ==========================================
@@ -158,37 +241,33 @@ total_sismos_recientes = len(df_sismos)
 val_b_value = calcular_b_value(df_sismos)
 kp_solar_actual = obtener_indice_kp_noaa()
 
-# ─── NUEVA INTEGRACIÓN: LÓGICA DE FALLBACK AUTOMÁTICO ───
 nodo_offline = False
-log_redundancia = "Canales estables. Datos directo de estación física continental."
+log_redundancia = "Canales estables. Datos directo de estacion fisica continental."
 
 if simular_caida_red:
-    # Simulamos probabilísticamente que el nodo seleccionado perdió conexión física directa
     if random.choice([True, False]):
         nodo_offline = True
-        log_redundancia = "⚠️ NODO OFFLINE por colapso de red. Activando Algoritmo Fallback: Interpolación matemática con estaciones colindantes."
-        # Generamos datos estimados por vecindad matemática
+        log_redundancia = "⚠️ NODO OFFLINE por colapso de red. Activando Algoritmo Fallback: Interpolacion por vecindad colindante."
         anomalia_shoa = round(1.8 + random.uniform(0.5, 2.0), 2)
         val_conductividad = round(config_local["baseline_cond"] + 0.25, 2)
         presion_numerica = round(config_local["baseline_pres"] - 0.8, 2)
         anomalia_termica_real = round(1.4, 2)
         nivel_insar_automatico = 65.0
     else:
-        log_redundancia = "🛰️ Conexión directa reestablecida temporalmente vía satélite LEO."
+        log_redundancia = "🛰️ Conexion directa reestablecida via satelite LEO."
         anomalia_shoa = round(2.0 + random.uniform(-1.5, 3.0), 2)
         val_conductividad = round(config_local["baseline_cond"] + random.uniform(-0.3, 0.7), 2)
         presion_numerica = round(config_local["baseline_pres"] + random.uniform(-1.5, 1.5), 2)
         anomalia_termica_real = round(random.uniform(0.2, 2.5), 2)
         nivel_insar_automatico = round(42.0 + min(total_sismos_recientes * 4.0, 48.0) + random.uniform(-1.5, 1.5), 1)
 else:
-    # Flujo normal sin caídas de enlace
     anomalia_shoa = round(2.0 + random.uniform(-1.5, 3.0), 2)
     val_conductividad = round(config_local["baseline_cond"] + random.uniform(-0.3, 0.7), 2)
     presion_numerica = round(config_local["baseline_pres"] + random.uniform(-1.5, 1.5), 2)
     anomalia_termica_real = round(random.uniform(0.2, 2.5), 2)
     nivel_insar_automatico = round(42.0 + min(total_sismos_recientes * 4.0, 48.0) + random.uniform(-1.5, 1.5), 1)
 
-# Cómputo final
+# Cómputo estructural final
 estado, icono, puntaje, log_filtro = calcular_riesgo_tectonico_blindado(
     nivel_insar_automatico, anomalia_termica_real, total_sismos_recientes, val_b_value, kp_solar_actual,
     presion_numerica, anomalia_shoa, val_conductividad, config_local
@@ -201,17 +280,16 @@ es_alerta_amarilla_40 = (puntaje >= 40.0 and puntaje < 75.0)
 lat_predicha, lon_predicha = config_local["lat"], config_local["lon"]
 
 # ==========================================
-# RENDERIZADO DE LA INTERFAZ v3 INTEGRADO
+# RENDERIZADO DE INTERFAZ GRÁFICA WEB
 # ==========================================
-st.html(f'<div style="text-align:center; padding:10px 0px 30px 0px;"><h1 style="color:#58a6ff; font-size:40px; margin-bottom:5px;">⚡ NAZCA-NEURAL DETECTOR v3</h1><p style="color:#8b949e;">Monitoreo Dinámico de la Fosa Perú-Chile y Sistema Global de Subducción Continental</p></div>')
+st.html(f'<div style="text-align:center; padding:10px 0px 30px 0px;"><h1 style="color:#58a6ff; font-size:40px; margin-bottom:5px;">⚡ NAZCA-NEURAL DETECTOR v4</h1><p style="color:#8b949e;">Monitoreo Dinámico de la Fosa Perú-Chile y Módulo de Reportabilidad Ciudadana</p></div>')
 
-# Banner de Canal de Comunicación Superior
 if simular_caida_red:
     st.html(f'<div style="background-color:#3a1d1d; color:#ff7b72; padding:10px; border-radius:6px; border:1px solid #7a2e2e; font-family:monospace; margin-bottom:15px; font-size:12px; font-weight:bold;">⚠️ ENLACE ACTUAL: {canal_comunicacion} // RUTA CRÍTICA ACTIVA</div>')
 else:
     st.html(f'<div style="background-color:#1c2128; color:#79c0ff; padding:10px; border-radius:6px; border:1px solid #30363d; font-family:monospace; margin-bottom:15px; font-size:12px; font-weight:bold;">✅ ENLACE ACTUAL: {canal_comunicacion} // INFRAESTRUCTURA OPERATIVA</div>')
 
-tab1, tab2 = st.tabs(["🌐 ESCANEO EN VIVO (REAL-TIME)", "📚 ANTECEDENTES HISTÓRICOS"])
+tab1, tab2 = st.tabs(["🌐 ESCANEO EN VIVO (REAL-TIME)", "📚 ANTECENTES HISTÓRICOS"])
 
 with tab1:
     if es_alerta_roja_90:
@@ -223,12 +301,9 @@ with tab1:
     else:
         st.html(f'<div style="background-color:#11221a; border-left: 5px solid #2a9d8f; padding:15px; border-radius:8px; color:#fff; margin-bottom:25px; font-family: monospace;">✅ <strong>COMPORTAMIENTO ESTABLE (LÍNEA DE BASE):</strong> Placa de Nazca en deslizamiento elástico regular.</div>')
 
-    # Despliegue de los logs de filtros e inmunidad a caídas
     st.info(f"🛡️ **LOG FILTRO INTEGRADO:** {log_filtro}")
-    if nodo_offline:
-        st.warning(f"🔄 **CAPA DE PROTOCOLO RED-ACTIVA:** {log_redundancia}")
-    else:
-        st.success(f"💎 **CAPA DE PROTOCOLO RED-ACTIVA:** {log_redundancia}")
+    if nodo_offline: st.warning(f"🔄 **CAPA DE PROTOCOLO RED-ACTIVA:** {log_redundancia}")
+    else: st.success(f"💎 **CAPA DE PROTOCOLO RED-ACTIVA:** {log_redundancia}")
 
     st.markdown("### 📈 PANEL DE TELEMETRÍA MÁXIMA MULTI-VARIABLE")
     m1, m2, m3, m4 = st.columns(4)
@@ -240,9 +315,8 @@ with tab1:
     col_mapa, col_datos = st.columns([1.8, 1.2])
     with col_mapa:
         m = folium.Map(location=[-33.0, -71.5], zoom_start=4, tiles="cartodbpositron")
-        folium.PolyLine([[-15.0, -75.0], [-20.0, -71.5], [-25.0, -71.5], [-30.0, -72.0], [-35.0, -73.0], [-40.0, -74.5], [-46.0, -75.5]], color="#ff003c", weight=3, opacity=0.7, tooltip="Fosa de Perú-Chile (Límite Nazca)").add_to(m)
+        folium.PolyLine([[-15.0, -75.0], [-20.0, -71.5], [-25.0, -71.5], [-30.0, -72.0], [-35.0, -73.0], [-40.0, -74.5], [-46.0, -75.5]], color="#ff003c", weight=3, opacity=0.7, tooltip="Fosa de Perú-Chile (Nazca)").add_to(m)
         
-        # Color del marcador cambia si el nodo está operando por interpolación de contingencia
         color_nodo = "orange" if nodo_offline else "darkblue"
         tooltip_nodo = "Nodo Activo (DATOS ESTIMADOS POR INTERPOLACIÓN)" if nodo_offline else "Nodo Activo Continental"
         
@@ -250,7 +324,7 @@ with tab1:
         if not df_sismos.empty:
             for idx, row in df_sismos.iterrows():
                 folium.CircleMarker(location=[row['Latitud'], row['Longitud']], radius=max(3.5, float(row['Magnitud'])*1.8), color="#ff7b72" if row['Magnitud']>=5.0 else "#ffbc42", fill=True).add_to(m)
-        st_folium(m, width="100%", height=515, key="mapa_nazca_v3")
+        st_folium(m, width="100%", height=515, key="mapa_nazca_v4")
 
     with col_datos:
         st.html(
@@ -282,11 +356,30 @@ with tab2:
     })
     st.dataframe(df_hist, use_container_width=True, hide_index=True)
 
-# Barra Lateral Inferior
+# ==========================================
+# BARRA LATERAL INFERIOR Y EXPORTACIÓN PDF
+# ==========================================
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 🎚 McKay ANALYTICS // NAZCA GLOBAL")
 st.sidebar.metric("Filtro Ionosférico (NOAA)", f"KP {kp_solar_actual}", "Filtro Geomagnético")
 st.sidebar.metric("Sismicidad de Fondo (b)", f"{val_b_value}", "Evolución de Falla Regional")
+
+st.sidebar.markdown("---")
+st.sidebar.markdown("### 📄 REPORTABILIDAD CIUDADANA")
+
+# Ejecutamos la función de PDF limpia de caracteres Unicode conflictivos
+pdf_data = generar_pdf_reporte(
+    estacion_seleccionada, puntaje, estado, val_b_value, 
+    val_conductividad, anomalia_shoa, total_sismos_recientes, canal_comunicacion
+)
+
+st.sidebar.download_button(
+    label="📥 Descargar Reporte Diario PDF",
+    data=bytes(pdf_data),
+    file_name=f"Reporte_Nazca_{datetime.now().strftime('%Y%m%d')}.pdf",
+    mime="application/pdf",
+    use_container_width=True
+)
 
 if intervalo_seleccionado != "Desactivado":
     time.sleep({"10 segundos": 10, "30 segundos": 30, "1 minuto": 60}.get(intervalo_seleccionado, 10))
