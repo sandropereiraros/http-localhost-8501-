@@ -8,7 +8,7 @@ import time
 import random
 import numpy as np
 from fpdf import FPDF  
-import io  # <-- NUEVA LIBRERÍA INTEGRADA: Para solucionar el error de bytes en servidores cloud
+import io  # <-- CRÍTICO: Para solucionar el fallo de conversión de bytes en la nube
 
 # ==========================================
 # CONFIGURACIÓN DE LA INTERFAZ WEB Y ESTILOS NEÓN
@@ -38,17 +38,17 @@ st.html(
 )
 
 # ==========================================
-# FUNCIÓN MAESTRA: GENERADOR DE INFORME PDF OPTIMIZADO PARA CLOUD (SIN CONFLICTO DE BYTES)
+# FUNCIÓN MAESTRA: GENERADOR DE INFORME PDF BLINDADO (SOLUCIÓN DE BYTES)
 # ==========================================
 def generar_pdf_reporte(estacion, puntaje, estado, b_val, cond, shoa, sismos_cnt, canal):
     pdf = FPDF()
     pdf.add_page()
     
-    # Renderizado estético del documento (Paleta oscura institucional)
+    # Fondo oscuro institucional
     pdf.set_fill_color(13, 17, 23)
     pdf.rect(0, 0, 210, 297, 'F')
     
-    # Título Principal
+    # Título Principal limpio de caracteres especiales
     pdf.set_text_color(88, 166, 255)
     pdf.set_font("Courier", "B", 18)
     pdf.cell(0, 15, "CORE-NEURAL SYSTEM // DIAGNOSTICO CORTICAL", ln=True, align="C")
@@ -62,7 +62,7 @@ def generar_pdf_reporte(estacion, puntaje, estado, b_val, cond, shoa, sismos_cnt
     pdf.cell(0, 5, f"Canal de Enlace: {canal_limpio}", ln=True, align="C")
     pdf.ln(10)
     
-    # Contenedor de Estado Ciudadano (Cuadro de Resumen Explicativo)
+    # Cuadro de Resumen Informativo
     pdf.set_fill_color(22, 27, 34)
     pdf.rect(10, 45, 190, 45, 'F')
     
@@ -79,7 +79,6 @@ def generar_pdf_reporte(estacion, puntaje, estado, b_val, cond, shoa, sismos_cnt
     pdf.set_font("Courier", "B", 14)
     pdf.cell(0, 8, f"ALERTA ACTUAL: {estado.upper()} // MATCH: {puntaje:.1f}%", ln=True)
     
-    # EXPLICACIÓN TRADUCIDA AL CIUDADANO COMÚN
     pdf.set_xy(15, 66)
     pdf.set_text_color(201, 209, 217)
     pdf.set_font("Courier", "", 10)
@@ -93,7 +92,7 @@ def generar_pdf_reporte(estacion, puntaje, estado, b_val, cond, shoa, sismos_cnt
         
     pdf.multi_cell(180, 4.5, explicacion)
     
-    # Tabla de Datos Duros
+    # Tabla de Datos Técnicos
     pdf.set_xy(10, 100)
     pdf.set_text_color(88, 166, 255)
     pdf.set_font("Courier", "B", 11)
@@ -106,7 +105,7 @@ def generar_pdf_reporte(estacion, puntaje, estado, b_val, cond, shoa, sismos_cnt
     
     pdf.set_font("Courier", "", 10)
     pdf.cell(100, 8, "Sismicidad de Fondo (b-value)", border=1)
-    pdf.cell(90, 8, f"{b_val} b (Valores < 0.8 indican alto estres estructural)", border=1, ln=True)
+    pdf.cell(90, 8, f"{b_val} b (Valores < 0.8 indican estres estructural)", border=1, ln=True)
     pdf.cell(100, 8, "Conductividad Electromagnetica", border=1)
     pdf.cell(90, 8, f"{cond} mS/m (Fluctuacion de conductividad cortical)", border=1, ln=True)
     pdf.cell(100, 8, "Residuo Mareografico (CENDHOC-SHOA)", border=1)
@@ -119,9 +118,12 @@ def generar_pdf_reporte(estacion, puntaje, estado, b_val, cond, shoa, sismos_cnt
     pdf.set_font("Courier", "I", 8)
     pdf.cell(0, 10, "PROYECTO PRIVADO MCKAY ANALYTICS - FINES ESTRICTAMENTE INFORMATIVOS", align="C")
     
-    # ─── FIX CLOUD CRÍTICO ───
-    # Retornamos el PDF directamente mapeado en memoria de bytes con la función nativa limpia
-    return bytes(pdf.output())
+    # ─── NUEVO MOTOR DE SALIDA SEGURO PARA ENTORNO CLOUD/LOCAL ───
+    # Genera un string de bytes plano usando codificación nativa y lo envuelve en memoria dinámica
+    pdf_string = pdf.output(dest='S')
+    if isinstance(pdf_string, str):
+        return bytes(pdf_string, 'latin-1')
+    return bytes(pdf_string)
 
 # ==========================================
 # CONFIGURACIÓN DE RED & SELECCIÓN (BARRA LATERAL)
@@ -346,20 +348,20 @@ with tab1:
         st.markdown("⚡ **Sismos en Ventana Crítica (7D)**")
         st.dataframe(df_sismos[['Magnitud', 'Lugar', 'Fecha']] if not df_sismos.empty else pd.DataFrame(columns=['Magnitud','Lugar','Fecha']), height=160, use_container_width=True)
 
-    # ─── NUEVO POSICIONAMIENTO DEL BOTÓN EN EL PANEL CENTRAL ───
+    # ─── EXTRACTOR EN MEMORIA COMPATIBLE PARA MÁQUINAS LOCALES Y CLOUD ───
     st.markdown("---")
     st.markdown("### 📄 REPORTABILIDAD DIARIA")
     
-    # Generamos los bytes del PDF de forma limpia
-    pdf_data = generar_pdf_reporte(
+    # Ejecutamos la función modificada con buffer de strings directos
+    pdf_bytes = generar_pdf_reporte(
         estacion_seleccionada, puntaje, estado, val_b_value, 
         val_conductividad, anomalia_shoa, total_sismos_recientes, canal_comunicacion
     )
     
-    # Renderizamos el botón directamente en el centro para fácil acceso
+    # Botón centralizado e inmune a las diferencias de versión de FPDF
     st.download_button(
         label="📥 Descargar Reporte Diario PDF (Formato Ejecutivo)",
-        data=pdf_data, # <-- CORREGIDO: Pasa los bytes directos sin forzar 'bytes()'
+        data=pdf_bytes,
         file_name=f"Reporte_Nazca_{datetime.now().strftime('%Y%m%d')}.pdf",
         mime="application/pdf",
         use_container_width=True
