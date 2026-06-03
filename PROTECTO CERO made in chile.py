@@ -8,6 +8,7 @@ import time
 import random
 import numpy as np
 from fpdf import FPDF  
+import io  # <-- NUEVA LIBRERÍA INTEGRADA: Para solucionar el error de bytes en servidores cloud
 
 # ==========================================
 # CONFIGURACIÓN DE LA INTERFAZ WEB Y ESTILOS NEÓN
@@ -37,7 +38,7 @@ st.html(
 )
 
 # ==========================================
-# FUNCIÓN MAESTRA: GENERADOR DE INFORME PDF CORREGIDO (SIN EMOJIS/UNICODE)
+# FUNCIÓN MAESTRA: GENERADOR DE INFORME PDF OPTIMIZADO PARA CLOUD (SIN CONFLICTO DE BYTES)
 # ==========================================
 def generar_pdf_reporte(estacion, puntaje, estado, b_val, cond, shoa, sismos_cnt, canal):
     pdf = FPDF()
@@ -47,7 +48,7 @@ def generar_pdf_reporte(estacion, puntaje, estado, b_val, cond, shoa, sismos_cnt
     pdf.set_fill_color(13, 17, 23)
     pdf.rect(0, 0, 210, 297, 'F')
     
-    # Título Principal (Corregido: Se quitó el emoji del rayo)
+    # Título Principal
     pdf.set_text_color(88, 166, 255)
     pdf.set_font("Courier", "B", 18)
     pdf.cell(0, 15, "CORE-NEURAL SYSTEM // DIAGNOSTICO CORTICAL", ln=True, align="C")
@@ -56,7 +57,7 @@ def generar_pdf_reporte(estacion, puntaje, estado, b_val, cond, shoa, sismos_cnt
     pdf.set_font("Courier", "I", 9)
     fecha_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     pdf.cell(0, 5, f"Reporte Automatizado de Falla - Sincronizacion: {fecha_str}", ln=True, align="C")
-    # Limpiamos posibles emojis en la variable canal
+    
     canal_limpio = "SATELITAL LEO" if "SATELITAL" in canal else "RED TERRESTRE"
     pdf.cell(0, 5, f"Canal de Enlace: {canal_limpio}", ln=True, align="C")
     pdf.ln(10)
@@ -70,7 +71,6 @@ def generar_pdf_reporte(estacion, puntaje, estado, b_val, cond, shoa, sismos_cnt
     pdf.set_font("Courier", "B", 12)
     pdf.cell(0, 8, f"MONITOREO EN: {estacion.upper()}", ln=True)
     
-    # Definición de color del Semáforo en el PDF
     if puntaje >= 90: pdf.set_text_color(255, 0, 60)      
     elif puntaje >= 75: pdf.set_text_color(255, 159, 28)  
     elif puntaje >= 40: pdf.set_text_color(224, 159, 62)  
@@ -93,7 +93,7 @@ def generar_pdf_reporte(estacion, puntaje, estado, b_val, cond, shoa, sismos_cnt
         
     pdf.multi_cell(180, 4.5, explicacion)
     
-    # Tabla de Datos Duros (Se quitó el emoji del gráfico)
+    # Tabla de Datos Duros
     pdf.set_xy(10, 100)
     pdf.set_text_color(88, 166, 255)
     pdf.set_font("Courier", "B", 11)
@@ -119,7 +119,9 @@ def generar_pdf_reporte(estacion, puntaje, estado, b_val, cond, shoa, sismos_cnt
     pdf.set_font("Courier", "I", 8)
     pdf.cell(0, 10, "PROYECTO PRIVADO MCKAY ANALYTICS - FINES ESTRICTAMENTE INFORMATIVOS", align="C")
     
-    return pdf.output()
+    # ─── FIX CLOUD CRÍTICO ───
+    # Retornamos el PDF directamente mapeado en memoria de bytes con la función nativa limpia
+    return bytes(pdf.output())
 
 # ==========================================
 # CONFIGURACIÓN DE RED & SELECCIÓN (BARRA LATERAL)
@@ -344,6 +346,25 @@ with tab1:
         st.markdown("⚡ **Sismos en Ventana Crítica (7D)**")
         st.dataframe(df_sismos[['Magnitud', 'Lugar', 'Fecha']] if not df_sismos.empty else pd.DataFrame(columns=['Magnitud','Lugar','Fecha']), height=160, use_container_width=True)
 
+    # ─── NUEVO POSICIONAMIENTO DEL BOTÓN EN EL PANEL CENTRAL ───
+    st.markdown("---")
+    st.markdown("### 📄 REPORTABILIDAD DIARIA")
+    
+    # Generamos los bytes del PDF de forma limpia
+    pdf_data = generar_pdf_reporte(
+        estacion_seleccionada, puntaje, estado, val_b_value, 
+        val_conductividad, anomalia_shoa, total_sismos_recientes, canal_comunicacion
+    )
+    
+    # Renderizamos el botón directamente en el centro para fácil acceso
+    st.download_button(
+        label="📥 Descargar Reporte Diario PDF (Formato Ejecutivo)",
+        data=pdf_data, # <-- CORREGIDO: Pasa los bytes directos sin forzar 'bytes()'
+        file_name=f"Reporte_Nazca_{datetime.now().strftime('%Y%m%d')}.pdf",
+        mime="application/pdf",
+        use_container_width=True
+    )
+
 with tab2:
     st.markdown("### 📚 MATRIZ DE COMPORTAMIENTO HISTÓRICO COMPARADO")
     df_hist = pd.DataFrame({
@@ -357,29 +378,12 @@ with tab2:
     st.dataframe(df_hist, use_container_width=True, hide_index=True)
 
 # ==========================================
-# BARRA LATERAL INFERIOR Y EXPORTACIÓN PDF
+# BARRA LATERAL INFERIOR
 # ==========================================
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 🎚 McKay ANALYTICS // NAZCA GLOBAL")
 st.sidebar.metric("Filtro Ionosférico (NOAA)", f"KP {kp_solar_actual}", "Filtro Geomagnético")
 st.sidebar.metric("Sismicidad de Fondo (b)", f"{val_b_value}", "Evolución de Falla Regional")
-
-st.sidebar.markdown("---")
-st.sidebar.markdown("### 📄 REPORTABILIDAD CIUDADANA")
-
-# Ejecutamos la función de PDF limpia de caracteres Unicode conflictivos
-pdf_data = generar_pdf_reporte(
-    estacion_seleccionada, puntaje, estado, val_b_value, 
-    val_conductividad, anomalia_shoa, total_sismos_recientes, canal_comunicacion
-)
-
-st.sidebar.download_button(
-    label="📥 Descargar Reporte Diario PDF",
-    data=bytes(pdf_data),
-    file_name=f"Reporte_Nazca_{datetime.now().strftime('%Y%m%d')}.pdf",
-    mime="application/pdf",
-    use_container_width=True
-)
 
 if intervalo_seleccionado != "Desactivado":
     time.sleep({"10 segundos": 10, "30 segundos": 30, "1 minuto": 60}.get(intervalo_seleccionado, 10))
