@@ -3,3 +3,4 @@ folium
 streamlit-folium
 beautifulsoup4
 streamlit-geolocation
+FPDF
